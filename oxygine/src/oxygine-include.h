@@ -141,8 +141,8 @@ namespace oxygine { namespace log { void error(const char* format, ...); } }
 typedef unsigned __int64 uint64;
 typedef signed __int64 int64;
 #   else
-typedef unsigned long long uint64;
-typedef signed long long int64;
+typedef __uint64_t uint64;
+typedef __int64_t int64;
 #   endif
 #endif
 
