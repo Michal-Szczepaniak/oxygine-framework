@@ -33,12 +33,12 @@ endif(EMSCRIPTEN)
 
 
 set(OXYGINE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/oxygine)
-set(OXYGINE_SRC ${OXYGINE_ROOT}/src)
+set(OXYGINE_SRC ${OXYGINE_ROOT}/src/oxygine)
 
-set(FOLDERS src src/closure src/minizip src/core
-			src/core/gl src/dev_tools src/minizip 
-			src/math src/pugixml src/json src/res 
-			src/text_utils src/utils src/winnie_alloc)
+set(FOLDERS oxygine oxygine/closure oxygine/minizip oxygine/core
+			oxygine/core/gl oxygine/dev_tools oxygine/minizip 
+			oxygine/math oxygine/actor oxygine/tween oxygine/pugixml oxygine/json oxygine/res 
+			oxygine/text_utils oxygine/utils oxygine/winnie_alloc)
 
 
 if (EMSCRIPTEN)
@@ -100,7 +100,7 @@ elseif(MINGW)
 endif()
 
 if (OX_HAVE_LIBCURL)	
-	set(FOLDERS ${FOLDERS} src/core/curl)
+	set(FOLDERS ${FOLDERS} oxygine/core/curl)
 	include_directories(${THIRD_PARTY}/curl/)
 	set(OX_DEFINITIONS ${OX_DEFINITIONS} -DOX_HAVE_LIBCURL)
 endif(OX_HAVE_LIBCURL)	
@@ -117,19 +117,24 @@ endif(EMSCRIPTEN)
 
 foreach(ITEM ${FOLDERS})
 	file(GLOB FLS
-		${OXYGINE_ROOT}/${ITEM}/*.cpp
-		${OXYGINE_ROOT}/${ITEM}/*.c
-		${OXYGINE_ROOT}/${ITEM}/*.h)
+		${OXYGINE_ROOT}/src/${ITEM}/*.cpp
+		${OXYGINE_ROOT}/src/${ITEM}/*.c
+		${OXYGINE_ROOT}/src/${ITEM}/*.h)
 	set(SOURCES ${SOURCES} ${FLS})	
 	string(REPLACE / \\ SGROUP ${ITEM})
 	source_group(${SGROUP} FILES ${FLS})
 endforeach(ITEM)
 
 
-set(OXYGINE_INCLUDE_DIRS 
-	${OXYGINE_SRC}
-	${THIRD_PARTY}/pthreads/include/
-	${THIRD_PARTY}/zlib)
+if (MINGW)
+	set(OXYGINE_INCLUDE_DIRS
+		${THIRD_PARTY}/zlib)
+else()
+	set(OXYGINE_INCLUDE_DIRS
+		${THIRD_PARTY}/pthreads/include/
+		${THIRD_PARTY}/zlib)
+endif()		
+
 
 
 set(OXYGINE_LIBRARY_DIRS
@@ -143,9 +148,7 @@ if (FORCE_GLES)
 endif(FORCE_GLES)
 
 
-if (MINGW) 
-	set(CORE_LIBS ${CORE_LIBS}	mingw32)
-endif(MINGW)
+
 
 
 set(CORE_LIBS 
@@ -162,15 +165,23 @@ if (OX_USE_SDL2)
 endif(OX_USE_SDL2)	
 
 
-if (WIN32)
+if (MINGW) 
+
+	set(CORE_LIBS mingw32 pthread ${CORE_LIBS} psapi
+		libcurl_imp
+		ws2_32)
+
+elseif (WIN32)
+
 	set(CORE_LIBS ${CORE_LIBS}
 		pthreadVCE2
 		libcurl_imp
 		ws2_32)
+
 elseif(EMSCRIPTEN)	
-else(WIN32)
+else()
 	set(CORE_LIBS ${CORE_LIBS} pthread)
-endif(WIN32)
+endif()
 
 
 
@@ -225,6 +236,7 @@ endif(NOT MSVC)
 set(CMAKE_CXX_FLAGS ${OXYGINE_CXX_FLAGS})
 
 add_definitions(${OX_DEFINITIONS})
+include_directories(${OXYGINE_SRC})
 include_directories(${OXYGINE_INCLUDE_DIRS})
 add_library(oxygine-framework STATIC ${SOURCES})
 
@@ -243,6 +255,7 @@ set(OXYGINE_DEFINITIONS
 
 set(OXYGINE_INCLUDE_DIRS
 	${OXYGINE_INCLUDE_DIRS}
+	${OXYGINE_ROOT}/src
 	PARENT_SCOPE)
 
 set(OXYGINE_JS_LIBRARIES

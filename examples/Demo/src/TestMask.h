@@ -1,7 +1,7 @@
 #pragma once
 #include "test.h"
-#include "Polygon.h"
 #include "TestPolygon.h"
+
 
 class TestMask: public Test
 {
@@ -59,6 +59,7 @@ public:
         text->setText("Oxygine. Masked sky demo");
         text->setStyle(style);
 
+        text->addTween(TweenOutline(Color::Green), 3000, -1, true);
 
         const Test::toggle sm[] = {Test::toggle("hide mask", 0), Test::toggle("show mask", 1), };
         addToggle("show_mask", sm, 2);

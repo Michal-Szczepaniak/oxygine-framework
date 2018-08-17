@@ -1,10 +1,5 @@
 #include "Box2DDebugDraw.h"
-#include "core/VideoDriver.h"
-#include "RenderState.h"
-#include "core/gl/VideoDriverGLES20.h"
-#include "core/gl/ShaderProgramGL.h"
-#include "Material.h"
-#include "STDMaterial.h"
+#include "oxygine-framework.h"
 
 Box2DDraw::Box2DDraw(): _worldScale(1.0f), _world(0)
 {
@@ -41,21 +36,24 @@ Box2DDraw::~Box2DDraw()
 
 void Box2DDraw::doRender(const RenderState& rs)
 {
-    Material::setCurrent(0);
-
+    Material::null->apply();
+    rsCache().reset();
     IVideoDriver* driver = IVideoDriver::instance;
 
     _world->SetDebugDraw(this);
 
     driver->setShaderProgram(_program);
 
-    Matrix m = Matrix(rs.transform) * STDMaterial::instance->getRenderer()->getViewProjection();
-    driver->setUniform("projection", &m);
+    Matrix m = Matrix(rs.transform) * STDRenderer::getCurrent()->getViewProjection();
+    driver->setUniform("projection", m);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     _world->DrawDebugData();
     _world->SetDebugDraw(0);
+
+    rsCache().reset();
+
 }
 
 void Box2DDraw::DrawPolygon(const b2Vec2* vertices, int32 vertexCount, const b2Color& color)
@@ -131,7 +129,7 @@ void Box2DDraw::createPolygonVertices(const b2Vec2* vertices, int32 vertexCount)
 {
     if (vertexCount > MAX_VERTICES)
     {
-        log::warning("need more vertices");
+        logs::warning("need more vertices");
         return;
     }
 

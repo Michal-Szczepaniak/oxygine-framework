@@ -1,6 +1,91 @@
 #pragma once
 #include "test.h"
-#include "core/UberShaderProgram.h"
+
+DECLARE_SMART(SDFMaterial, spSDFMaterial);
+class SDFMaterial : public STDMaterial
+{
+public:
+    MATX(SDFMaterial);
+
+
+    Color outlineColor = Color(255, 255, 255, 255);
+    float offset = 0.5f;
+    float outline = 0.4f;
+
+    static UberShaderProgram* uberShader;
+
+
+    static void initMaterial()
+    {
+        uberShader = new UberShaderProgram();
+        uberShader->init(STDRenderer::uberShaderBody,
+                         R"(
+                #define REPLACED_GET_BASE
+                #define DONT_MULT_BY_RESULT_COLOR
+
+                uniform lowp vec4 sdf_outline_color;
+                uniform mediump vec4 sdf_params;
+            )",
+
+                         R"(
+#ifdef PS
+                lowp vec4 replaced_get_base()
+                {
+                    lowp float tx = texture2D(base_texture, result_uv).r;
+     
+                    
+                    lowp float b =   min((tx - sdf_params.z) * sdf_params.w, 1.0);
+                    lowp float a = clamp((tx - sdf_params.x) * sdf_params.y, 0.0, 1.0);
+	                lowp vec4 res = (sdf_outline_color + (result_color - sdf_outline_color)*a) * b;
+
+                    return res;
+                }
+#endif
+        )");
+    }
+
+    static void freeMaterial()
+    {
+        delete uberShader;
+    }
+
+    void init() override
+    {
+        _uberShader = uberShader;
+    }
+
+
+    void rehash(size_t& hash) const override
+    {
+        hash_combine(hash, this);
+    }
+
+    static bool cmp(const SDFMaterial& a, const SDFMaterial& b)
+    {
+        if (!STDMaterial::cmp(a, b))
+            return false;
+
+        return a.outlineColor == b.outlineColor && a.offset == b.offset && a.outline == b.outline;
+    }
+
+    void xapply() override
+    {
+        STDMaterial::xapply();
+
+        const AffineTransform& tr = STDRenderer::getCurrent()->getTransform();
+        float scale = sqrt(tr.a * tr.a + tr.c * tr.c);
+        float contrast = 3.0f + scale * 8.0f;
+
+        Vector4 sdfParams(offset, contrast, outline, contrast);
+        IVideoDriver::instance->setUniform("sdf_params", sdfParams);
+
+        Vector4 color = outlineColor.toVector();
+        IVideoDriver::instance->setUniform("sdf_outline_color", color);
+
+    }
+};
+
+UberShaderProgram* SDFMaterial::uberShader = 0;
 
 class TestSignedDistanceFont : public Test
 {
@@ -11,6 +96,8 @@ public:
     spTween t;
     TestSignedDistanceFont()
     {
+        SDFMaterial::initMaterial();
+
         font.initSD("sdf/font.fnt", 8);
         font.load();
 
@@ -44,16 +131,17 @@ public:
 
         st.multiline = true;
 
-        st.outlineColor = Color::White;
-        st.outline = 0.1f;
-
         txt->setStyle(st);
         txt->setColor(Color::CornflowerBlue);
         txt->setText("The quick brown fox jumps over the lazy dog. 1234567890.");
         txt->setPosition(getStage()->getSize() / 2);
         txt->setWidth(getStage()->getWidth() / 2);
         txt->setAnchor(0.5f, 0.5f);
+        txt->addTween(Actor::TweenRotationDegrees(360), 10000, -1);
 
+        spSDFMaterial sdf = new SDFMaterial;
+
+        txt->setMaterial(sdf);
 
 
         addButton("scale+", "scale+");
@@ -68,14 +156,17 @@ public:
 
     ~TestSignedDistanceFont()
     {
+        SDFMaterial::freeMaterial();
     }
 
     void clicked(string id)
     {
+        spSDFMaterial mat = safeSpCast<SDFMaterial>(_txt->_mat);
+
         if (id == "outline+")
-            _txt->setOutline(_txt->getOutline() + 0.01f);
+            mat->outline += 0.01f;
         if (id == "outline-")
-            _txt->setOutline(_txt->getOutline() - 0.01f);
+            mat->outline -= 0.01f;
 
         if (id == "scale+")
             _txt->addTween(TweenScale(_txt->getScale() * 1.5f), 300);
@@ -83,9 +174,12 @@ public:
             _txt->addTween(TweenScale(_txt->getScale() / 1.5f), 300);
 
         if (id == "weight+")
-            _txt->setWeight(_txt->getWeight() - 0.01f);
+            mat->offset += 0.01f;
         if (id == "weight-")
-            _txt->setWeight(_txt->getWeight() + 0.01f);
+            mat->offset -= 0.01f;
+
+        _txt->setMaterial(mat);
+
     }
 
     void toggleClicked(string id, const toggle* data)

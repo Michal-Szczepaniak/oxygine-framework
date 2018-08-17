@@ -1,5 +1,6 @@
 #include "oxygine-framework.h"
 #include <functional>
+
 using namespace oxygine;
 
 //it is our resources
@@ -32,11 +33,16 @@ public:
         EventCallback cb = CLOSURE(this, &MainActor::buttonClicked);
         button->addEventListener(TouchEvent::CLICK, cb);
 
+        //animate mouse over and mouse out events
+        cb = CLOSURE(this, &MainActor::buttonOverOut);
+        button->addEventListener(TouchEvent::OVER, cb);
+        button->addEventListener(TouchEvent::OUTX, cb);
+
 #ifdef CLOSURE_FUNCTION //if your compiler supports lambda
 
         button->addEventListener(TouchEvent::CLICK, [](Event * e)->void
         {
-            log::messageln("button clicked");
+            logs::messageln("button clicked");
         });
 
 #endif
@@ -79,6 +85,19 @@ public:
 
         //lets create and run sprite with simple animation
         runSprite();
+    }
+
+    void buttonOverOut(Event* e)
+    {
+        if (e->type == TouchEvent::OVER)
+        {
+            _button->addTween(Sprite::TweenAddColor(Color(64, 64, 64, 0)), 300);
+        }
+
+        if (e->type == TouchEvent::OUTX)
+        {
+            _button->addTween(Sprite::TweenAddColor(Color(0, 0, 0, 0)), 300);
+        }
     }
 
     void runSprite()

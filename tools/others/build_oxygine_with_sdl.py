@@ -9,6 +9,27 @@ import shutil
 import zipfile
 import time
 
+def test():
+
+    with zipfile.ZipFile("d:/oxygine-framework/oxygine-framework.zip", "r", compression=zipfile.ZIP_DEFLATED) as zp:
+        res = zipfile.ZipFile("d:/oxygine-framework/oxygine-framework-X.zip", "w", compression=zipfile.ZIP_DEFLATED)
+        lst = zp.filelist
+        for item in lst:
+            name = os.path.split(item.filename)[1]
+            base, ext = os.path.splitext(name)
+            if ext in (".sh", ".py") or name in ("gradlew", "PVRTexToolCLI", "PVRTexToolCLI_64"):
+                item.external_attr = 0755 << 16L  # a+x
+
+
+            data = zp.read(item.filename)
+            res.writestr(item, data, zipfile.ZIP_DEFLATED)
+
+        res.close()
+
+
+
+test()
+q = 0
 
 def recursive_zip(zipf, directory, folder=""):
     for item in os.listdir(directory):
@@ -38,6 +59,8 @@ def buildzip(name):
     destzip = "../../" + name
     with zipfile.ZipFile(destzip, "w", compression=zipfile.ZIP_DEFLATED) as zp:
         recursive_zip(zp, "../../temp")
+
+
 
     # return
     try:
@@ -130,7 +153,7 @@ enum(SOUND_dest + "/examples/", copy)
 enum(FLOW_dest + "/examples/", copy)
 enum(FT_dest + "/examples/", copy)
 
-shutil.copy(SDL_dest + "/android-project/src/org/libsdl/app/SDLActivity.java",
+shutil.copy(SDL_dest + "/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java",
             OXYGINE_dest + "/oxygine/SDL/android/lib/src/org/libsdl/app/SDLActivity.java")
 
 libs = ("SDL2.lib", "SDL2main.lib", )

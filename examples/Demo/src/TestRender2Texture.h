@@ -1,6 +1,5 @@
 #pragma once
 #include "test.h"
-#include "STDMaterial.h"
 
 class TestRender2Texture : public Test
 {
@@ -8,6 +7,8 @@ public:
     spNativeTexture texture;
     Color color;
     spSprite preview;
+
+    bool painter;
 
     TestRender2Texture()
     {
@@ -17,7 +18,9 @@ public:
         spSprite back = new Sprite;
         back->setResAnim(resources.getResAnim("bg"));
         back->attachTo(content);
-        back->setPosition(content->getSize() / 2 - back->getSize() / 2);
+        back->setSize(getStage()->getSize());
+
+        back->setPosition(content->getSize() / 2 - back->getScaledSize() / 2);
 
 
 
@@ -35,7 +38,6 @@ public:
         AnimationFrame frame;
         Diffuse df;
         df.base = texture;
-        df.premultiplied = false;
         frame.init(0, df,
                    RectF(0, 0, size.x / texture->getWidth(), size.y / texture->getHeight()),
                    RectF(Vector2(0, 0), size), size);
@@ -45,6 +47,18 @@ public:
         content->addEventListener(TouchEvent::MOVE, CLOSURE(this, &TestRender2Texture::onMove));
         content->addEventListener(TouchEvent::TOUCH_DOWN, CLOSURE(this, &TestRender2Texture::onDown));
 
+
+        Test::toggle t[2];
+        t[0].text = "eraser";
+        t[1].text = "paint";
+        addToggle("mode", t, 2);
+
+        painter = true;
+    }
+
+    void toggleClicked(string id, const toggle* t) override
+    {
+        painter = !painter;
     }
 
     void onDown(Event* ev)
@@ -56,44 +70,47 @@ public:
     void onMove(Event* ev)
     {
         TouchEvent* te = (TouchEvent*)ev;
+
         bool left = te->getPointer()->isPressed();
         bool right = te->getPointer()->isPressed(MouseButton_Right);
+
         if (!left && !right)
             return;
 
-        STDRenderer& renderer = *STDRenderer::instance;
+        STDRenderer& renderer = *STDRenderer::getCurrent();
 
 #if 1
+        bool paint = painter && !right;
         renderer.begin(texture);
-        RectF destRect(te->localPosition - Vector2(16, 16), Vector2(32, 32));
 
-        ResAnim* brush = resources.getResAnim(left ? "brush" : "brush_eraser");
+        Vector2 size = getStage()->getSize() / 20;
+        RectF destRect(te->localPosition - size, size * 2);
+
+        ResAnim* brush = resources.getResAnim("brush");
         AnimationFrame frame = brush->getFrame(0);
         const Diffuse& df = frame.getDiffuse();
-        renderer.setTexture(df.base, 0);
-        if (left)
-            renderer.setBlendMode(blend_premultiplied_alpha);
+        rsCache().setTexture(0, df.base);
+        if (paint)
+            rsCache().setBlendMode(blend_premultiplied_alpha);
         else
         {
-            color = Color::White;
-            renderer.setBlendMode(blend_disabled);
+            rsCache().setBlendMode(blend_add);
+            oxglBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
         }
 
-
-        renderer.draw(color, frame.getSrcRect(), destRect);
+        renderer.addQuad(color, frame.getSrcRect(), destRect);
         renderer.end();
+        if (!paint)
+            oxglBlendEquation(GL_FUNC_ADD);//restore to default value
 #else
-        //how to render actors to texture
-        Material::setCurrent(0);
-
+        renderer.begin(texture);
         spActor actor = new ManageResTest;
         actor->setScale(0.5f);
 
         RenderState rs;
-        rs.material = STDMaterial::instance;
         actor->setAlpha(64);
         actor->render(rs);
-        Material::setCurrent(0);
+        renderer.end();
 #endif
     }
 };
