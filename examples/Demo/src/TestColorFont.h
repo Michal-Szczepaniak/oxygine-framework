@@ -1,53 +1,34 @@
 #pragma once
 #include "test.h"
-#include "core/UberShaderProgram.h"
 
-DECLARE_SMART(ShaderTextField, spShaderTextField);
-class CustomShader : public Material
+
+class ColoredShaderMat : public STDMaterial
 {
 public:
-    static CustomShader* get(Actor* a)
+    MATX(ColoredShaderMat);
+
+    Vector4 uniformBlack = Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+
+
+    void rehash(size_t& hash) const override
     {
-        return safeCast<CustomShader*>(a->getMaterial());
+        STDMaterial::rehash(hash);
+        hash_combine(hash, uniformBlack.x, uniformBlack.y, uniformBlack.z, uniformBlack.w);
     }
 
-    CustomShader(UberShaderProgram* shader): _shader(shader) {}
-
-    void apply(Actor* a)
+    static bool cmp(const ColoredShaderMat& a, const ColoredShaderMat& b)
     {
-        a->setMaterial(this);
+        if (!STDMaterial::cmp(a, b))
+            return false;
+
+        return a.uniformBlack == b.uniformBlack;
     }
 
-    void free()
+    void xapply() override
     {
-
+        STDMaterial::xapply();
+        IVideoDriver::instance->setUniform("_black", uniformBlack);
     }
-
-    void setUniforms(IVideoDriver* driver, ShaderProgram* prog)
-    {
-        //driver->setUniform("userValue", &_val, 1);
-
-        /*Color q(_adata, _adata, _adata, _adata);
-        Vector4 c;
-        c = tovec(_outer * q);
-        driver->setUniform("_black", &c, 1);
-        c = tovec(getColor() * _style.color * q);
-        driver->setUniform("_white", &c, 1);*/
-    }
-
-    void doRender(Actor* actor, RenderState& rs)
-    {
-        /* _shader->setShaderUniformsCallback(CLOSURE(this, &CustomShader::setUniforms));
-         STDRenderer* renderer = safeCast<STDRenderer*>(rs.renderer);
-         renderer->setUberShaderProgram(_shader);
-
-         actor->doRender(rs);
-
-         renderer->setUberShaderProgram(&Renderer::uberShader);
-         _shader->setShaderUniformsCallback(UberShaderProgram::ShaderUniformsCallback());*/
-    }
-
-    UberShaderProgram* _shader;
 };
 
 class ShaderTextField : public TextField
@@ -58,16 +39,20 @@ public:
     {
         shader = new UberShaderProgram();
         shader->init(STDRenderer::uberShaderBody,
-                     "#define MODIFY_BASE\n"
-                     "#define DONT_MULT_BY_RESULT_COLOR\n"
-                     "uniform lowp vec4 _black;"
-                     "uniform lowp vec4 _white;"
-                     "lowp vec4 modify_base(lowp vec4 base)\n"
-                     "{\n"
-                     "lowp vec4 black = vec4(_black.rgb, 1.0);" "\n"
-                     "lowp vec4 white = vec4(_white.rgb, 1.0);" "\n"
-                     "return mix(_white, _black, base.r) * base.a;\n"
-                     "}\n");
+                     R"(
+                     #define MODIFY_BASE
+                     #define DONT_MULT_BY_RESULT_COLOR)",
+
+                     R"(
+                     uniform lowp vec4 _black;
+                     uniform lowp vec4 _white;
+                     lowp vec4 modify_base(lowp vec4 base)
+                     {
+                         lowp vec4 black = vec4(_black.rgb, result_color.a);
+                         lowp vec4 white = result_color;
+                         return mix(white, black, base.r) * base.a;
+                     }
+            )");
     }
 
     static void free()
@@ -75,11 +60,13 @@ public:
         delete shader;
     }
 
-    //void set
+    ColoredShaderMat mat;
 
     ShaderTextField() : _outer(Color::White)
     {
-
+        mat._uberShader = shader;
+        mat.uniformBlack = _outer.toVector();
+        _mat = mc().cache(mat);
     }
 
     const Color& getOuterColor() const
@@ -90,40 +77,20 @@ public:
     void setOuterColor(const Color& v)
     {
         _outer = v;
+        mat.uniformBlack = _outer.toVector();
+
+        setMaterial(mc().cache(mat));
     }
 
     typedef Property<Color, const Color&, ShaderTextField, &ShaderTextField::getOuterColor, &ShaderTextField::setOuterColor>   TweenOuterColor;
 
 private:
     Color _outer;
-    unsigned char _adata;
-
-    void setUniforms(IVideoDriver* driver, ShaderProgram* prog)
-    {
-        Color q(_adata, _adata, _adata, _adata);
-        Vector4 c = (_outer * q).toVector();
-        driver->setUniform("_black", &c, 1);
-        c = (getColor() * _style.color * q).toVector();
-        driver->setUniform("_white", &c, 1);
-    }
-
-    void doRender(const RenderState& rs)
-    {
-        Material::setCurrent(rs.material);
-
-        STDRenderer* renderer = STDRenderer::instance;
-        _adata = rs.alpha;
-        shader->setShaderUniformsCallback(CLOSURE(this, &ShaderTextField::setUniforms));
-        renderer->setUberShaderProgram(shader);
-        TextField::doRender(rs);
-        renderer->setUberShaderProgram(&STDRenderer::uberShader);
-
-        shader->setShaderUniformsCallback(UberShaderProgram::ShaderUniformsCallback());
-    }
 };
 
-UberShaderProgram* ShaderTextField::shader = 0;
+DECLARE_SMART(ShaderTextField, spShaderTextField);
 
+UberShaderProgram* ShaderTextField::shader = 0;
 
 class TestColorFont : public Test
 {
@@ -150,8 +117,9 @@ public:
         txt->setText("1234567890");
         txt->setPosition(getStage()->getSize() / 2);
         txt->setOuterColor(Color::White);
+        txt->setKerning(5);
         txt->addTween(ShaderTextField::TweenOuterColor(Color::Black), 4000, -1, true, 2000);
-        txt->addTween(TextField::TweenColor(Color::Magenta), 5000, -1, true);
+        txt->addTween(ShaderTextField::TweenColor(Color::Magenta), 5000, -1, true);
     }
 
     ~TestColorFont()

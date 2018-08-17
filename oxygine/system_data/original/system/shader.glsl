@@ -3,12 +3,8 @@ varying lowp vec4 result_color;
 varying mediump vec2 result_uv;
 varying mediump vec2 result_uv2;
 
-//SDF data
-uniform lowp vec4 sdf_outline_color;
-uniform mediump vec4 sdf_params;
-
 #ifdef VS
-uniform mediump mat4 mat;
+uniform highp mat4 mat;
 uniform mediump vec3 msk[4];
 attribute vec3 position;
 attribute vec4 color;
@@ -40,13 +36,16 @@ uniform lowp sampler2D base_texture;
 uniform lowp sampler2D mask_texture;
 uniform lowp sampler2D alpha_texture;
 
-#ifdef SDF
-#define DONT_MULT_BY_RESULT_COLOR
-#endif
+
+lowp vec4 modify_base_pre(lowp vec4);
+lowp vec4 modify_base(lowp vec4);
+lowp vec4 replaced_get_base();
+lowp vec4 replaced_get_color();
 
 lowp vec4 get_base()
 {
 	lowp vec4 base = texture2D(base_texture, result_uv);	
+	
 #ifdef SEPARATE_ALPHA
 	base.a = texture2D(alpha_texture, result_uv).r;	
 #endif
@@ -67,24 +66,6 @@ lowp vec4 get_base()
 
 	return base;
 }
-
-
-lowp vec4 get_base_sdf()
-{
-	lowp float tx = texture2D(base_texture, result_uv).r;
-     
-#ifdef SDF_OUTLINE
-    lowp float b =   min((tx - sdf_params.z) * sdf_params.w, 1.0);
-    lowp float a = clamp((tx - sdf_params.x) * sdf_params.y, 0.0, 1.0);
-	lowp vec4 res = (sdf_outline_color + (result_color - sdf_outline_color)*a) * b;
-#else
-	lowp float a = min((tx - sdf_params.x) * sdf_params.y, 1.0);
-	lowp vec4 res = result_color * a;
-#endif
-
-    return res;
-}
-
 lowp vec2 my_step(lowp vec2 a, lowp vec2 b)
 {
 #ifdef ANDROID
@@ -104,11 +85,7 @@ lowp vec4 get_color()
 	//define REPLACED_GET_BASE and declare your own function replaced_get_base()
 	lowp vec4 base = replaced_get_base();
 #else
-#	ifdef SDF
-	lowp vec4 base = get_base_sdf();
-#	else
 	lowp vec4 base = get_base();
-#	endif
 #endif
 
 

@@ -1,7 +1,5 @@
 #include "test.h"
 #include "oxygine-framework.h"
-#include "core/STDFileSystem.h"
-#include "WebImage.h"
 
 Resources Test::resourcesUI;
 file::STDFileSystem extfs(true);
@@ -137,6 +135,18 @@ spButton Test::addButton(std::string id, std::string txt)
     textColor = Color(72, 61, 139, 255);
 
     _y += button->getHeight() + 2.0f;
+
+    Sprite* ptr = button.get();
+    button->addEventListener(TouchEvent::OVER, [ = ](Event*)
+    {
+        ptr->addTween(Sprite::TweenAddColor(Color(64, 64, 64, 0)), 300);
+    });
+
+
+    button->addEventListener(TouchEvent::OUTX, [ = ](Event*)
+    {
+        ptr->addTween(Sprite::TweenAddColor(Color(0, 0, 0, 0)), 300);
+    });
 
     if (_y + button->getHeight() >= getHeight())
     {

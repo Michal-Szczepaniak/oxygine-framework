@@ -1,7 +1,5 @@
 #pragma once
 #include "test.h"
-#include "core/gl/oxgl.h"
-#include "core/gl/ShaderProgramGL.h"
 
 
 struct myVertex
@@ -19,30 +17,32 @@ public:
 
     OpenGLSprite()
     {
-        const char* vertexShaderData = "\
-									uniform mediump mat4 projection;\
-									attribute vec3 a_position;\
-                                    attribute vec2 a_uv;\
-                                    varying mediump vec2 v_uv;\
-									void main() {\
-									vec4 position = vec4(a_position, 1.0);\
-									gl_Position = projection * position;\
-                                    v_uv = a_uv;\
-									}\
-									";
+        const char* vertexShaderData = R"(
+            uniform mediump mat4 projection;
+            attribute vec3 a_position;
+            attribute vec2 a_uv;
+            varying mediump vec2 v_uv;
+            void main() 
+            {
+                vec4 position = vec4(a_position, 1.0);
+                gl_Position = projection * position;
+                v_uv = a_uv;
+            }
+		)";
 
-        const char* fragmentShaderData = "\
-                                      varying mediump vec2 v_uv;\
-                                      uniform lowp sampler2D base_texture;\
-                                      \
-									  void main() { \
-									  gl_FragColor = texture2D(base_texture, v_uv); \
-									  } \
-									  ";
+        const char* fragmentShaderData = R"(
+            varying mediump vec2 v_uv;
+            uniform lowp sampler2D base_texture;
+                                      
+			void main() 
+            {
+			    gl_FragColor = texture2D(base_texture, v_uv);
+			}
+		)";
 
 
-        int vs = ShaderProgramGL::createShader(GL_VERTEX_SHADER,   vertexShaderData, 0, 0);
-        int fs = ShaderProgramGL::createShader(GL_FRAGMENT_SHADER, fragmentShaderData, 0, 0);
+        int vs = ShaderProgramGL::createShader(GL_VERTEX_SHADER,   vertexShaderData);
+        int fs = ShaderProgramGL::createShader(GL_FRAGMENT_SHADER, fragmentShaderData);
 
         _program = oxglCreateProgram();
         oxglAttachShader(_program, vs);
@@ -75,7 +75,7 @@ public:
 
     void doRender(const RenderState& rs)
     {
-        Material::setCurrent(0);
+        Material::null->apply();
 
 
         glEnable(GL_BLEND);
@@ -99,7 +99,7 @@ public:
 
         CHECKGL();
 
-        Matrix m = Matrix(rs.transform) * STDMaterial::instance->getRenderer()->getViewProjection();
+        Matrix m = Matrix(rs.transform) * STDRenderer::instance->getViewProjection();
 
         int projLocation = oxglGetUniformLocation(_program, "projection");
         oxglUniformMatrix4fv(projLocation, 1, GL_FALSE, m.ml);
@@ -139,7 +139,11 @@ public:
 
         oxglDisableVertexAttribArray(0);
         oxglDisableVertexAttribArray(1);
+
         CHECKGL();
+
+        //reset states to defaults after direct opengl usage
+        rsCache().reset();
     }
 };
 

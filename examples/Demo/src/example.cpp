@@ -14,7 +14,6 @@
 #include "TestBox9Sprite.h"
 #include "TestClipRect.h"
 #include "TestUserShader.h"
-#include "TestUserShader2.h"
 #include "TestMask.h"
 #include "TestPolygon.h"
 #include "TestInputText.h"
@@ -50,12 +49,15 @@ Resources resources;
 spStage stage2;
 #endif
 
+
 class TestActor: public Test
 {
 public:
 
     TestActor()
     {
+
+
 
         _x = 90;//getStage()->getWidth()/2.0f;
         _y = 80;
@@ -78,15 +80,17 @@ public:
         addButton("box9sprite", "Box9 Sprite");
         addButton("cliprect", "ClipRect Actor");
         addButton("usershader", "Extended UberShader");
-        addButton("usershader2", "Custom shaders and render");
         addButton("opengl", "OpenGL usage");
         addButton("multicolorfont", "Outer Font Color");
-        addButton("sdf", "Signed Distance Font");
+        addButton("sdf", "Signed Distance Field Font");
         addButton("mask", "Mask");
         addButton("polygon", "Polygon");
         addButton("inputtext", "Input Text");
         addButton("openbrowser", "Open Browser");
-        addButton("http", "Http requests");
+
+        if (HttpRequestTask::create())
+            addButton("http", "Http requests");
+
         addButton("tweenpp", "Post Processing Tweens");
 
         _color = Color::Red;
@@ -132,7 +136,6 @@ public:
         if (id == "box9sprite") showTest(new TestBox9Sprite);
         if (id == "cliprect") showTest(new TestClipRect);
         if (id == "usershader") showTest(new TestUserShader);
-        if (id == "usershader2") showTest(new TestUserShader2);
         if (id == "opengl") showTest(new TestOpenGL);
         if (id == "mask") showTest(new TestMask);
         if (id == "polygon") showTest(new TestPolygon);
